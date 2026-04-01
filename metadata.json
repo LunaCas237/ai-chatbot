@@ -1,0 +1,5 @@
+{
+  "name": "Embeddable AI Chatbot",
+  "description": "A customizable, embeddable AI chatbot widget powered by Gemini.",
+  "requestFramePermissions": []
+}
