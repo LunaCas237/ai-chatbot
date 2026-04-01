@@ -1,6 +1,11 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
 const apiKey = process.env.GEMINI_API_KEY;
+if (!apiKey) {
+  console.warn("GEMINI_API_KEY is not defined in the environment.");
+} else {
+  console.log("GEMINI_API_KEY is defined.");
+}
 const genAI = new GoogleGenAI({ apiKey: apiKey || "" });
 
 export interface MessagePart {
@@ -45,12 +50,12 @@ Use the information from https://www.wallcraftthailand.com/ to provide detailed 
 If the user provides an image, analyze it (e.g., a room photo) and suggest suitable Wallcraft wallpaper designs or materials in both languages.`;
 
   const chat = genAI.chats.create({
-    model: "gemini-3-flash-preview",
+    model: "gemini-flash-latest",
     config: {
       systemInstruction: systemInstruction || defaultSystemInstruction,
-      tools: [{ urlContext: {} }],
+      tools: [{ googleSearch: {} }],
     },
-    history: history,
+    history: history.map(({ role, parts }) => ({ role, parts })),
   });
 
   const parts: MessagePart[] = [{ text: `${message} (Reference: https://www.wallcraftthailand.com/)` }];
