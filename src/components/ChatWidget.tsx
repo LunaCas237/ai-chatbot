@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, sendMessageStream } from '../services/gemini';
-import { Send, Bot, User, X, MessageSquare, Settings, Loader2 } from 'lucide-react';
+import { Send, Bot, User, X, MessageSquare, Settings, Loader2, Image as ImageIcon, Paperclip } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -9,11 +9,26 @@ export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
+  const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState('You are a helpful AI chatbot. Keep your responses concise and friendly.');
+  const [systemPrompt, setSystemPrompt] = useState(`You are a helpful AI assistant. 
+Your primary language is Thai. 
+For every response, you MUST provide the answer in Thai first, followed by a clear English translation.
+Format your response like this:
+[Thai Response]
+---
+[English Translation]
+
+If the user provides an image, analyze it and answer their questions about it in both languages.`);
   const [showSettings, setShowSettings] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOpenChat = () => setIsOpen(true);
+    window.addEventListener('open-chat', handleOpenChat);
+    return () => window.removeEventListener('open-chat', handleOpenChat);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -23,17 +38,40 @@ export default function ChatWidget() {
     scrollToBottom();
   }, [messages]);
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      const data = base64.split(',')[1];
+      setSelectedImage({ data, mimeType: file.type });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !selectedImage) || isLoading) return;
 
     const userMessage: Message = {
       role: 'user',
-      parts: [{ text: input.trim() }],
+      parts: [
+        { text: input.trim() || (selectedImage ? "What is in this image?" : "") },
+        ...(selectedImage ? [{ inlineData: selectedImage }] : [])
+      ],
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const currentImage = selectedImage;
     setInput('');
+    setSelectedImage(null);
     setIsLoading(true);
 
     try {
@@ -43,7 +81,7 @@ export default function ChatWidget() {
       // Add a placeholder message for the assistant
       setMessages((prev) => [...prev, { role: 'model', parts: [{ text: '' }] }]);
 
-      const stream = sendMessageStream(history, userMessage.parts[0].text, systemPrompt);
+      const stream = sendMessageStream(history, userMessage.parts[0].text || "", currentImage || undefined, systemPrompt);
       
       for await (const chunk of stream) {
         assistantText += chunk;
@@ -156,9 +194,23 @@ export default function ChatWidget() {
                       ? "bg-blue-600 text-white rounded-tr-none" 
                       : "bg-white text-slate-800 border border-slate-100 rounded-tl-none"
                   )}>
-                    <div className="prose prose-sm prose-slate max-w-none dark:prose-invert">
-                      <Markdown>{msg.parts[0].text}</Markdown>
-                    </div>
+                    {msg.parts.map((part, pIdx) => (
+                      <div key={pIdx}>
+                        {part.inlineData && (
+                          <img 
+                            src={`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`} 
+                            alt="User upload" 
+                            className="mb-2 max-w-full rounded-lg"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        {part.text && (
+                          <div className="prose prose-sm prose-slate max-w-none dark:prose-invert">
+                            <Markdown>{part.text}</Markdown>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
@@ -177,7 +229,33 @@ export default function ChatWidget() {
 
             {/* Input */}
             <form onSubmit={handleSend} className="border-t bg-white p-4">
+              {selectedImage && (
+                <div className="mb-3 relative inline-block">
+                  <img 
+                    src={`data:${selectedImage.mimeType};base64,${selectedImage.data}`} 
+                    alt="Preview" 
+                    className="h-20 w-20 object-cover rounded-lg border border-slate-200"
+                    referrerPolicy="no-referrer"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedImage(null)}
+                    className="absolute -top-2 -right-2 bg-slate-800 text-white rounded-full p-1 shadow-md hover:bg-slate-700"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-2">
+                <label className="cursor-pointer flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
+                  <ImageIcon size={18} />
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleImageUpload}
+                  />
+                </label>
                 <input
                   type="text"
                   value={input}
@@ -187,7 +265,7 @@ export default function ChatWidget() {
                 />
                 <button
                   type="submit"
-                  disabled={isLoading || !input.trim()}
+                  disabled={isLoading || (!input.trim() && !selectedImage)}
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white transition-all hover:bg-blue-700 disabled:opacity-50"
                 >
                   <Send size={18} />

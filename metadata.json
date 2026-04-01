@@ -1,5 +1,5 @@
 {
-  "name": "Embeddable AI Chatbot",
-  "description": "A customizable, embeddable AI chatbot widget powered by Gemini.",
+  "name": "Thai-English AI Chatbot",
+  "description": "An AI chatbot that answers in Thai with English translations, supporting text and image inputs.",
   "requestFramePermissions": []
 }
