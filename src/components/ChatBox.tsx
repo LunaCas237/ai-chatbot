@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, sendMessageStream } from '../services/gemini';
-import { Send, Bot, User, X, Settings, Loader2, Image as ImageIcon, Sparkles, Circle } from 'lucide-react';
+import { Send, Bot, User, X, Settings, Loader2, Image as ImageIcon, Sparkles, Circle, Mic, Square } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -10,7 +10,7 @@ export default function ChatBox() {
   const [input, setInput] = useState('');
   const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState(`You are a helpful AI assistant for Wallcraft Thailand (https://www.wallcraftthailand.com/). 
+  const [systemPrompt, setSystemPrompt] = useState(`You are the official AI assistant for Wallcraft Thailand (https://www.wallcraftthailand.com/). 
 Your primary language is Thai. 
 For every response, you MUST provide the answer in Thai first, followed by a clear English translation.
 Format your response like this:
@@ -18,11 +18,58 @@ Format your response like this:
 ---
 [English Translation]
 
-Use the information from the Wallcraft Thailand website to answer questions accurately.
-If the user provides an image, analyze it and answer their questions about it in both languages.`);
+Your expertise is in Wallcraft Thailand's specific product lines, including:
+- Custom Digital Print Wallpapers (วอลเปเปอร์สั่งพิมพ์ระบบดิจิทัล)
+- Premium Wallcoverings and Murals
+- Specialized materials like Canvas, Leather, and Fabric textures
+- Professional installation services and interior decoration solutions
+
+Use the information from https://www.wallcraftthailand.com/ to provide detailed and accurate answers about their collections, materials, and pricing models. 
+If the user provides an image, analyze it (e.g., a room photo) and suggest suitable Wallcraft wallpaper designs or materials in both languages.`);
   const [showSettings, setShowSettings] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'th-TH';
+
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput((prev) => prev + (prev ? ' ' : '') + transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      if (recognitionRef.current) {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } else {
+        alert('Speech recognition is not supported in this browser.');
+      }
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -115,12 +162,12 @@ If the user provides an image, analyze it and answer their questions about it in
       {/* Header */}
       <div className="flex items-center justify-between bg-[#0f0f0f] px-6 py-4 text-white border-b border-[#2a2a2a]">
         <div className="flex items-center gap-3">
-          <Sparkles size={20} className="text-white" />
+          <Sparkles size={20} className="text-[#C5A059]" />
           <span className="font-semibold text-base">ผู้ช่วย Wallcraft (Wallcraft Assistant)</span>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-[#2a2a2a] px-3 py-1.5 rounded-full text-xs text-slate-400">
-            <Circle size={8} className="fill-blue-500 text-blue-500" />
+            <Circle size={8} className="fill-[#C5A059] text-[#C5A059]" />
             <span>Wallcraft Thailand</span>
           </div>
           <button
@@ -147,13 +194,13 @@ If the user provides an image, analyze it and answer their questions about it in
             <textarea
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
-              className="w-full rounded-xl border border-[#333] bg-[#1a1a1a] p-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-xl border border-[#333] bg-[#1a1a1a] p-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#C5A059]"
               rows={4}
               placeholder="Define the bot's personality..."
             />
             <button
               onClick={() => setShowSettings(false)}
-              className="mt-4 w-full rounded-xl bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-all"
+              className="mt-4 w-full rounded-xl bg-[#C5A059] py-3 text-sm font-bold text-white hover:bg-[#b38f4d] transition-all"
             >
               Save & Close
             </button>
@@ -232,7 +279,7 @@ If the user provides an image, analyze it and answer their questions about it in
               <img 
                 src={`data:${selectedImage.mimeType};base64,${selectedImage.data}`} 
                 alt="Preview" 
-                className="h-24 w-24 object-cover rounded-xl border-2 border-blue-500 shadow-lg"
+                className="h-24 w-24 object-cover rounded-xl border-2 border-[#C5A059] shadow-lg"
                 referrerPolicy="no-referrer"
               />
               <button
@@ -245,15 +292,29 @@ If the user provides an image, analyze it and answer their questions about it in
             </div>
           )}
           <div className="flex items-end gap-3">
-            <label className="cursor-pointer flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1a1a1a] text-slate-400 hover:bg-[#2a2a2a] transition-all border border-[#333] hover:text-white shadow-sm">
-              <ImageIcon size={22} />
-              <input 
-                type="file" 
-                accept="image/*" 
-                className="hidden" 
-                onChange={handleImageUpload}
-              />
-            </label>
+            <div className="flex gap-2">
+              <label className="cursor-pointer flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1a1a1a] text-slate-400 hover:bg-[#2a2a2a] transition-all border border-[#333] hover:text-white shadow-sm">
+                <ImageIcon size={22} />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={handleImageUpload}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={cn(
+                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-all border border-[#333] shadow-sm",
+                  isListening 
+                    ? "bg-red-500/20 text-red-500 border-red-500/50 animate-pulse" 
+                    : "bg-[#1a1a1a] text-slate-400 hover:bg-[#2a2a2a] hover:text-white"
+                )}
+              >
+                {isListening ? <Square size={18} fill="currentColor" /> : <Mic size={22} />}
+              </button>
+            </div>
             <div className="relative flex-1">
               <textarea
                 value={input}
@@ -265,13 +326,13 @@ If the user provides an image, analyze it and answer their questions about it in
                   }
                 }}
                 placeholder="พิมพ์ข้อความที่นี่..."
-                className="w-full rounded-2xl border border-[#333] bg-[#1a1a1a] pl-5 pr-14 py-3.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-700 resize-none max-h-32 min-h-[52px]"
+                className="w-full rounded-2xl border border-[#333] bg-[#1a1a1a] pl-5 pr-14 py-3.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#C5A059] placeholder:text-slate-700 resize-none max-h-32 min-h-[52px]"
                 rows={1}
               />
               <button
                 type="submit"
                 disabled={isLoading || (!input.trim() && !selectedImage)}
-                className="absolute right-2 bottom-2 flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white transition-all hover:bg-blue-700 disabled:opacity-30 disabled:hover:bg-blue-600 shadow-lg shadow-blue-500/10"
+                className="absolute right-2 bottom-2 flex h-9 w-9 items-center justify-center rounded-xl bg-[#C5A059] text-white transition-all hover:bg-[#b38f4d] disabled:opacity-30 disabled:hover:bg-[#C5A059] shadow-lg shadow-[#C5A059]/10"
               >
                 <Send size={18} />
               </button>

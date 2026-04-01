@@ -1,5 +1,5 @@
 {
   "name": "Thai-English AI Chatbot",
   "description": "An AI chatbot that answers in Thai with English translations, supporting text and image inputs.",
-  "requestFramePermissions": []
+  "requestFramePermissions": ["microphone"]
 }
