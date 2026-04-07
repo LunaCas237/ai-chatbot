@@ -18,6 +18,8 @@ Format your response like this:
 ---
 [English Translation]
 
+If the user says "hi" or "hello", you MUST respond exactly with: "hello, welcome to Wallcraft Thailand! I am the official AI assistant for Wallcraft Thailand, ready to provide information about our Custom Digital Print wallpapers and modern premium wallcoverings." followed by the Thai translation.
+
 Your expertise is in Wallcraft Thailand's specific product lines, including:
 - Custom Digital Print Wallpapers (วอลเปเปอร์สั่งพิมพ์ระบบดิจิทัล)
 - Premium Wallcoverings and Murals
@@ -28,32 +30,16 @@ Use the information from https://www.wallcraftthailand.com/ to provide detailed 
 If the user provides an image, analyze it (e.g., a room photo) and suggest suitable Wallcraft wallpaper designs or materials in both languages.`);
   const [showSettings, setShowSettings] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Initial check for support
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'th-TH';
-
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput((prev) => prev + (prev ? ' ' : '') + transcript);
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-      };
-
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
+    if (!SpeechRecognition) {
+      console.warn('Speech recognition is not supported in this browser.');
     }
   }, []);
 
@@ -61,13 +47,57 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
-    } else {
-      if (recognitionRef.current) {
-        recognitionRef.current.start();
-        setIsListening(true);
-      } else {
-        alert('Speech recognition is not supported in this browser.');
-      }
+      return;
+    }
+
+    setSpeechError(null);
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      setSpeechError('Browser not supported');
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'th-TH';
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setInput((prev) => prev + (prev ? ' ' : '') + transcript);
+        setIsListening(false);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        let errorMsg = 'Error occurred';
+        if (event.error === 'service-not-allowed') {
+          errorMsg = 'Service restricted by browser';
+        } else if (event.error === 'not-allowed') {
+          errorMsg = 'Permission denied';
+        } else if (event.error === 'network') {
+          errorMsg = 'Network error';
+        }
+        setSpeechError(errorMsg);
+        setIsListening(false);
+        
+        // Auto-clear error after 3 seconds
+        setTimeout(() => setSpeechError(null), 3000);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+      setIsListening(true);
+    } catch (err) {
+      console.error('Failed to start recognition:', err);
+      setSpeechError('Failed to start');
+      setIsListening(false);
     }
   };
 
@@ -160,15 +190,15 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-[#1a1a1a]">
       {/* Header */}
-      <div className="flex items-center justify-between bg-[#0f0f0f] px-6 py-4 text-white border-b border-[#2a2a2a]">
-        <div className="flex items-center gap-3">
-          <Sparkles size={20} className="text-[#C5A059]" />
-          <span className="font-semibold text-base">ผู้ช่วย Wallcraft (Wallcraft Assistant)</span>
+      <div className="flex items-center justify-between bg-[#0f0f0f] px-4 sm:px-6 py-3 sm:py-4 text-white border-b border-[#2a2a2a]">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Sparkles size={18} className="text-[#C5A059] shrink-0" />
+          <span className="font-semibold text-sm sm:text-base truncate">ผู้ช่วย Wallcraft</span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-[#2a2a2a] px-3 py-1.5 rounded-full text-xs text-slate-400">
-            <Circle size={8} className="fill-[#C5A059] text-[#C5A059]" />
-            <span>Wallcraft Thailand</span>
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="hidden xs:flex items-center gap-2 bg-[#2a2a2a] px-3 py-1.5 rounded-full text-[10px] sm:text-xs text-slate-400">
+            <Circle size={6} className="fill-[#C5A059] text-[#C5A059]" />
+            <span className="truncate">Wallcraft Thailand</span>
           </div>
           <button
             onClick={() => setShowSettings(!showSettings)}
@@ -209,7 +239,7 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
       </AnimatePresence>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-[#1a1a1a]">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6 sm:space-y-8 bg-[#1a1a1a]">
         {messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center text-center text-slate-600">
             <Sparkles size={64} className="mb-6 opacity-10" />
@@ -232,7 +262,7 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
               {msg.role === 'user' ? <User size={18} /> : <Bot size={18} />}
             </div>
             <div className={cn(
-              "max-w-[70%] rounded-2xl px-5 py-4 text-sm shadow-md relative",
+              "max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 sm:px-5 py-3 sm:py-4 text-sm shadow-md relative",
               "bg-[#0a0a0a] text-white border border-[#333]"
             )}>
               {msg.parts.map((part, pIdx) => (
@@ -272,14 +302,14 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-[#2a2a2a] bg-[#0f0f0f] p-6">
+      <div className="border-t border-[#2a2a2a] bg-[#0f0f0f] p-4 sm:p-6">
         <form onSubmit={handleSend} className="max-w-4xl mx-auto">
           {selectedImage && (
             <div className="mb-4 relative inline-block group">
               <img 
                 src={`data:${selectedImage.mimeType};base64,${selectedImage.data}`} 
                 alt="Preview" 
-                className="h-24 w-24 object-cover rounded-xl border-2 border-[#C5A059] shadow-lg"
+                className="h-20 w-20 sm:h-24 sm:w-24 object-cover rounded-xl border-2 border-[#C5A059] shadow-lg"
                 referrerPolicy="no-referrer"
               />
               <button
@@ -291,10 +321,10 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
               </button>
             </div>
           )}
-          <div className="flex items-end gap-3">
-            <div className="flex gap-2">
-              <label className="cursor-pointer flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1a1a1a] text-slate-400 hover:bg-[#2a2a2a] transition-all border border-[#333] hover:text-white shadow-sm">
-                <ImageIcon size={22} />
+          <div className="flex items-end gap-2 sm:gap-3">
+            <div className="flex gap-1.5 sm:gap-2">
+              <label className="cursor-pointer flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[#1a1a1a] text-slate-400 hover:bg-[#2a2a2a] transition-all border border-[#333] hover:text-white shadow-sm">
+                <ImageIcon size={20} className="sm:w-[22px] sm:h-[22px]" />
                 <input 
                   type="file" 
                   accept="image/*" 
@@ -306,13 +336,18 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
                 type="button"
                 onClick={toggleListening}
                 className={cn(
-                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl transition-all border border-[#333] shadow-sm",
+                  "flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl transition-all border border-[#333] shadow-sm relative",
                   isListening 
                     ? "bg-red-500/20 text-red-500 border-red-500/50 animate-pulse" 
                     : "bg-[#1a1a1a] text-slate-400 hover:bg-[#2a2a2a] hover:text-white"
                 )}
               >
-                {isListening ? <Square size={18} fill="currentColor" /> : <Mic size={22} />}
+                {isListening ? <Square size={16} className="sm:w-[18px] sm:h-[18px]" fill="currentColor" /> : <Mic size={20} className="sm:w-[22px] sm:h-[22px]" />}
+                {speechError && (
+                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap animate-bounce">
+                    {speechError}
+                  </div>
+                )}
               </button>
             </div>
             <div className="relative flex-1">
