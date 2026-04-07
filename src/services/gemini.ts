@@ -53,7 +53,7 @@ Use the information from https://www.wallcraftthailand.com/ to provide detailed 
 If the user provides an image, analyze it (e.g., a room photo) and suggest suitable Wallcraft wallpaper designs or materials in both languages.`;
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: "gemini-1.5-flash-latest",
     systemInstruction: systemInstruction || defaultSystemInstruction,
     // Note: googleSearch tool requires specific billing/setup, 
     // remove if you get "tool not found" errors.
