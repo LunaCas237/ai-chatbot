@@ -27,6 +27,7 @@ Your expertise is in Wallcraft Thailand's specific product lines, including:
 - Professional installation services and interior decoration solutions
 
 Use the information from https://www.wallcraftthailand.com/ to provide detailed and accurate answers about their collections, materials, and pricing models. 
+Keep your responses concise and informative to stay within token limits.
 If the user provides an image, analyze it (e.g., a room photo) and suggest suitable Wallcraft wallpaper designs or materials in both languages.`);
   const [showSettings, setShowSettings] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -159,13 +160,27 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
 
       const stream = sendMessageStream(history, userMessage.parts[0].text || "", currentImage || undefined, systemPrompt);
       
+      let hasReceivedChunk = false;
       for await (const chunk of stream) {
+        hasReceivedChunk = true;
         assistantText += chunk;
         setMessages((prev) => {
           const newMessages = [...prev];
           newMessages[newMessages.length - 1] = {
             role: 'model',
             parts: [{ text: assistantText }],
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          return newMessages;
+        });
+      }
+
+      if (!hasReceivedChunk) {
+        setMessages((prev) => {
+          const newMessages = [...prev];
+          newMessages[newMessages.length - 1] = {
+            role: 'model',
+            parts: [{ text: 'Sorry, I did not receive a response from the AI. Please check your connection and try again.' }],
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
           return newMessages;
@@ -193,7 +208,7 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
       <div className="flex items-center justify-between bg-[#0f0f0f] px-4 sm:px-6 py-3 sm:py-4 text-white border-b border-[#2a2a2a]">
         <div className="flex items-center gap-2 sm:gap-3">
           <Sparkles size={18} className="text-[#C5A059] shrink-0" />
-          <span className="font-semibold text-sm sm:text-base truncate">ผู้ช่วย Wallcraft</span>
+          <span className="font-semibold text-[13px] truncate">ผู้ช่วย Wallcraft</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
           <div className="hidden xs:flex items-center gap-2 bg-[#2a2a2a] px-3 py-1.5 rounded-full text-[10px] sm:text-xs text-slate-400">
@@ -262,7 +277,7 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
               {msg.role === 'user' ? <User size={18} /> : <Bot size={18} />}
             </div>
             <div className={cn(
-              "max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 sm:px-5 py-3 sm:py-4 text-sm shadow-md relative",
+              "max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 sm:px-5 py-3 sm:py-4 text-[12px] shadow-md relative font-sans",
               "bg-[#0a0a0a] text-white border border-[#333]"
             )}>
               {msg.parts.map((part, pIdx) => (
@@ -276,7 +291,7 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
                     />
                   )}
                   {part.text && (
-                    <div className="prose prose-sm prose-invert max-w-none leading-relaxed">
+                    <div className="prose prose-sm prose-invert max-w-none leading-normal !text-[12px] font-sans">
                       <Markdown>{part.text}</Markdown>
                     </div>
                   )}
@@ -361,7 +376,7 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
                   }
                 }}
                 placeholder="พิมพ์ข้อความที่นี่..."
-                className="w-full rounded-2xl border border-[#333] bg-[#1a1a1a] pl-5 pr-14 py-3.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#C5A059] placeholder:text-slate-700 resize-none max-h-32 min-h-[52px]"
+                className="w-full rounded-2xl border border-[#333] bg-[#1a1a1a] pl-5 pr-14 py-3.5 text-[12px] text-white focus:outline-none focus:ring-2 focus:ring-[#C5A059] placeholder:text-slate-700 resize-none max-h-32 min-h-[52px] font-sans"
                 rows={1}
               />
               <button

@@ -2,9 +2,7 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
-  console.warn("GEMINI_API_KEY is not defined in the environment.");
-} else {
-  console.log("GEMINI_API_KEY is defined.");
+  console.warn("GEMINI_API_KEY is not defined in the environment. AI features will not work.");
 }
 const genAI = new GoogleGenAI({ apiKey: apiKey || "" });
 
@@ -48,27 +46,63 @@ Your expertise is in Wallcraft Thailand's specific product lines, including:
 - Specialized materials like Canvas, Leather, and Fabric textures
 - Professional installation services and interior decoration solutions
 
-Use the information from https://www.wallcraftthailand.com/ to provide detailed and accurate answers about their collections, materials, and pricing models. 
+Use Google Search to find specific wallpaper collections, prices, and availability on the Wallcraft Thailand website (https://www.wallcraftthailand.com/) when users ask for specific styles or images.
+Keep your responses concise and informative.
 If the user provides an image, analyze it (e.g., a room photo) and suggest suitable Wallcraft wallpaper designs or materials in both languages.`;
 
-  const chat = genAI.chats.create({
-    model: "gemini-flash-latest",
-    config: {
-      systemInstruction: systemInstruction || defaultSystemInstruction,
-      tools: [{ googleSearch: {} }],
-    },
-    history: history.map(({ role, parts }) => ({ role, parts })),
-  });
+  const contents = history.map(({ role, parts }) => ({
+    role,
+    parts: parts.map(part => {
+      if (part.text) return { text: part.text };
+      if (part.inlineData) return { inlineData: part.inlineData };
+      return part;
+    })
+  }));
 
-  const parts: MessagePart[] = [{ text: `${message} (Reference: https://www.wallcraftthailand.com/)` }];
-  if (image) {
-    parts.push({ inlineData: image });
+  const userParts: any[] = [];
+  if (message.trim()) {
+    userParts.push({ text: `${message} (Reference: https://www.wallcraftthailand.com/)` });
+  } else if (image) {
+    userParts.push({ text: "What is in this image? (Reference: https://www.wallcraftthailand.com/)" });
   }
 
-  const result = await chat.sendMessageStream({ message: parts as any });
+  if (image) {
+    userParts.push({ inlineData: image });
+  }
 
-  for await (const chunk of result) {
-    const response = chunk as GenerateContentResponse;
-    yield response.text;
+  if (userParts.length === 0) return;
+
+  contents.push({
+    role: "user",
+    parts: userParts
+  });
+
+  try {
+    const result = await genAI.models.generateContentStream({
+      model: "gemini-3.1-pro-preview",
+      contents,
+      config: {
+        systemInstruction: systemInstruction || defaultSystemInstruction,
+        temperature: 0.7,
+        topP: 0.95,
+        topK: 40,
+        tools: [{ googleSearch: {} }],
+        toolConfig: { includeServerSideToolInvocations: true }
+      },
+    });
+
+    for await (const chunk of result) {
+      const response = chunk as GenerateContentResponse;
+      if (response.text) {
+        yield response.text;
+      }
+    }
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    if (error instanceof Error) {
+      yield `Error: ${error.message}`;
+    } else {
+      yield "An unexpected error occurred while communicating with the AI.";
+    }
   }
 }
