@@ -1,9 +1,12 @@
+@import url('https://cdn.jsdelivr.net/gh/line/seed/fonts/LINE-Seed-Sans-TH.css');
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Helvetica", "Arial", "LINE Seed Sans TH", "LINESeedSansTH", "LINE Seed", "Kanit", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --breakpoint-xs: 480px;
 }
 
 :root {
