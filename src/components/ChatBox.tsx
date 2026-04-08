@@ -26,8 +26,8 @@ Your expertise is in Wallcraft Thailand's specific product lines, including:
 - Specialized materials like Canvas, Leather, and Fabric textures
 - Professional installation services and interior decoration solutions
 
-Use Google Search to find specific wallpaper collections, prices, and availability on the Wallcraft Thailand website (https://www.wallcraftthailand.com/) when users ask for specific styles or images.
-Keep your responses concise and informative.
+Use the information from https://www.wallcraftthailand.com/ to provide detailed and accurate answers about their collections, materials, and pricing models. 
+Keep your responses concise and informative to stay within token limits.
 If the user provides an image, analyze it (e.g., a room photo) and suggest suitable Wallcraft wallpaper designs or materials in both languages.`);
   const [showSettings, setShowSettings] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -149,9 +149,7 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
     setIsLoading(true);
 
     try {
-      // Limit history to last 10 messages to save tokens and avoid quota limits
-      const historyLimit = 10;
-      const history = messages.slice(-historyLimit);
+      const history = messages;
       let assistantText = '';
       
       setMessages((prev) => [...prev, { 
@@ -191,29 +189,14 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
     } catch (error) {
       console.error('Chat error:', error);
       const errorTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const errorMessage = error instanceof Error ? error.message : 'Sorry, I encountered an error. Please try again.';
-      
-      setMessages((prev) => {
-        const newMessages = [...prev];
-        // If the last message is the empty bot message we just added, update it
-        if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model' && !newMessages[newMessages.length - 1].parts[0].text) {
-          newMessages[newMessages.length - 1] = {
-            role: 'model',
-            parts: [{ text: `Error: ${errorMessage}` }],
-            timestamp: errorTimestamp
-          };
-          return newMessages;
-        }
-        // Otherwise append a new error message
-        return [
-          ...prev,
-          { 
-            role: 'model', 
-            parts: [{ text: `Error: ${errorMessage}` }],
-            timestamp: errorTimestamp
-          },
-        ];
-      });
+      setMessages((prev) => [
+        ...prev,
+        { 
+          role: 'model', 
+          parts: [{ text: 'Sorry, I encountered an error. Please try again.' }],
+          timestamp: errorTimestamp
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
