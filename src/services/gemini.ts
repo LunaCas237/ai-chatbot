@@ -48,7 +48,13 @@ Your expertise is in Wallcraft Thailand's specific product lines, including:
 
 Use Google Search to find specific wallpaper collections, prices, and availability on the Wallcraft Thailand website (https://www.wallcraftthailand.com/) when users ask for specific styles or images.
 Keep your responses concise and informative.
-If the user provides an image, analyze it (e.g., a room photo) and suggest suitable Wallcraft wallpaper designs or materials in both languages.`;
+
+When an image is provided:
+1. Provide a VERY DETAILED description of the image content, focusing on textures, colors, lighting, and spatial arrangement.
+2. If a specific area was selected (cropped), focus your analysis primarily on that region.
+3. Suggest suitable Wallcraft wallpaper designs or materials that would complement the scene or match the style in the image.
+4. Explain WHY these suggestions work based on the visual elements identified.
+5. Provide all this information in both Thai and English as per the standard format.`;
 
   const contents = history.map(({ role, parts }) => ({
     role,

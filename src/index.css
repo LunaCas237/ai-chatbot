@@ -1,6 +1,7 @@
 @import url('https://cdn.jsdelivr.net/gh/line/seed/fonts/LINE-Seed-Sans-TH.css');
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500&display=swap');
 @import "tailwindcss";
+@import "react-image-crop/dist/ReactCrop.css";
 @plugin "@tailwindcss/typography";
 
 @theme {

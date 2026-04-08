@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, sendMessageStream } from '../services/gemini';
-import { Send, Bot, User, X, Settings, Loader2, Image as ImageIcon, Sparkles, Circle, Mic, Square } from 'lucide-react';
+import { Send, Bot, User, X, Settings, Loader2, Image as ImageIcon, Sparkles, Circle, Mic, Square, Crop as CropIcon, Check, Share2 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactCrop, { type Crop, PixelCrop } from 'react-image-crop';
 
 export default function ChatBox() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -28,10 +29,21 @@ Your expertise is in Wallcraft Thailand's specific product lines, including:
 
 Use the information from https://www.wallcraftthailand.com/ to provide detailed and accurate answers about their collections, materials, and pricing models. 
 Keep your responses concise and informative to stay within token limits.
-If the user provides an image, analyze it (e.g., a room photo) and suggest suitable Wallcraft wallpaper designs or materials in both languages.`);
+
+When an image is provided:
+1. Provide a VERY DETAILED description of the image content, focusing on textures, colors, lighting, and spatial arrangement.
+2. If a specific area was selected (cropped), focus your analysis primarily on that region.
+3. Suggest suitable Wallcraft wallpaper designs or materials that would complement the scene or match the style in the image.
+4. Explain WHY these suggestions work based on the visual elements identified.
+5. Provide all this information in both Thai and English as per the standard format.`);
   const [showSettings, setShowSettings] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [speechError, setSpeechError] = useState<string | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+  const [imgSrc, setImgSrc] = useState('');
+  const [isCropping, setIsCropping] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
   const recognitionRef = useRef<any>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -121,11 +133,51 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
 
     const reader = new FileReader();
     reader.onload = () => {
-      const base64 = reader.result as string;
-      const data = base64.split(',')[1];
-      setSelectedImage({ data, mimeType: file.type });
+      setImgSrc(reader.result as string);
+      setIsCropping(true);
+      setCrop(undefined); // Reset crop
     };
     reader.readAsDataURL(file);
+    // Reset input value to allow re-uploading the same file
+    e.target.value = '';
+  };
+
+  const handleCropComplete = async () => {
+    if (!imgRef.current || !completedCrop) {
+      // If no crop is selected, use the full image
+      const data = imgSrc.split(',')[1];
+      const mimeType = imgSrc.split(';')[0].split(':')[1];
+      setSelectedImage({ data, mimeType });
+      setIsCropping(false);
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    const image = imgRef.current;
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    canvas.width = completedCrop.width;
+    canvas.height = completedCrop.height;
+    const ctx = canvas.getContext('2d');
+
+    if (ctx) {
+      ctx.drawImage(
+        image,
+        completedCrop.x * scaleX,
+        completedCrop.y * scaleY,
+        completedCrop.width * scaleX,
+        completedCrop.height * scaleY,
+        0,
+        0,
+        completedCrop.width,
+        completedCrop.height
+      );
+    }
+
+    const base64 = canvas.toDataURL('image/jpeg');
+    const data = base64.split(',')[1];
+    setSelectedImage({ data, mimeType: 'image/jpeg' });
+    setIsCropping(false);
   };
 
   const handleSend = async (e?: React.FormEvent) => {
@@ -202,6 +254,12 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
     }
   };
 
+  const copyAppLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    alert('คัดลอกลิงก์แล้ว! ส่งลิงก์นี้ไปยังโทรศัพท์ของคุณเพื่อใช้งาน\n\nLink copied! Send this link to your phone.');
+  };
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-[#1a1a1a]">
       {/* Header */}
@@ -211,7 +269,15 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
           <span className="font-semibold text-[13px] truncate">ผู้ช่วย Wallcraft</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
-          <div className="hidden xs:flex items-center gap-2 bg-[#2a2a2a] px-3 py-1.5 rounded-full text-[10px] sm:text-xs text-slate-400">
+          <button
+            onClick={copyAppLink}
+            className="hidden xs:flex items-center gap-2 bg-[#2a2a2a] px-3 py-1.5 rounded-full text-[10px] sm:text-xs text-slate-400 hover:bg-white/10 hover:text-white transition-all"
+            title="Copy link for phone"
+          >
+            <Share2 size={14} className="text-[#C5A059]" />
+            <span className="truncate">ส่งไปที่มือถือ</span>
+          </button>
+          <div className="hidden sm:flex items-center gap-2 bg-[#2a2a2a] px-3 py-1.5 rounded-full text-[10px] sm:text-xs text-slate-400">
             <Circle size={6} className="fill-[#C5A059] text-[#C5A059]" />
             <span className="truncate">Wallcraft Thailand</span>
           </div>
@@ -249,6 +315,75 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
             >
               Save & Close
             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Image Cropping Modal */}
+      <AnimatePresence>
+        {isCropping && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 sm:p-8"
+          >
+            <div className="relative flex max-h-full w-full max-w-4xl flex-col rounded-3xl bg-[#0f0f0f] border border-[#2a2a2a] shadow-2xl overflow-hidden">
+              <div className="flex items-center justify-between border-b border-[#2a2a2a] px-6 py-4">
+                <div className="flex items-center gap-2 text-white">
+                  <CropIcon size={18} className="text-[#C5A059]" />
+                  <span className="font-semibold text-sm">เลือกพื้นที่ที่ต้องการเน้น</span>
+                </div>
+                <button 
+                  onClick={() => setIsCropping(false)}
+                  className="rounded-full p-2 text-slate-400 hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-auto p-6 flex items-center justify-center bg-[#1a1a1a]">
+                {imgSrc && (
+                  <ReactCrop
+                    crop={crop}
+                    onChange={(c) => setCrop(c)}
+                    onComplete={(c) => setCompletedCrop(c)}
+                    className="max-h-full"
+                  >
+                    <img
+                      ref={imgRef}
+                      src={imgSrc}
+                      alt="Crop source"
+                      className="max-h-[60vh] w-auto object-contain"
+                      onLoad={(e) => {
+                        // Optional: center crop or something
+                      }}
+                    />
+                  </ReactCrop>
+                )}
+              </div>
+
+              <div className="border-t border-[#2a2a2a] bg-[#0f0f0f] p-6 flex flex-col sm:flex-row gap-3">
+                <p className="text-[11px] text-slate-500 flex-1 mb-2 sm:mb-0">
+                  ลากเพื่อเลือกพื้นที่ที่คุณต้องการให้ AI วิเคราะห์อย่างละเอียด หรือกด "ยืนยัน" เพื่อใช้รูปภาพทั้งหมด
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setIsCropping(false)}
+                    className="flex-1 sm:flex-none rounded-xl border border-[#333] px-6 py-2.5 text-sm font-medium text-white hover:bg-white/5 transition-all"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    onClick={handleCropComplete}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl bg-[#C5A059] px-8 py-2.5 text-sm font-bold text-white hover:bg-[#b38f4d] transition-all shadow-lg shadow-[#C5A059]/20"
+                  >
+                    <Check size={18} />
+                    ยืนยัน
+                  </button>
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
