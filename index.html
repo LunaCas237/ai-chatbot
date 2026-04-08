@@ -3,7 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <title>Wallcraft AI Assistant</title>
+    <script>
+      // Suppress benign Vite websocket errors in the preview environment
+      window.addEventListener('unhandledrejection', (event) => {
+        if (event.reason && event.reason.toString().includes('WebSocket')) {
+          event.preventDefault();
+        }
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

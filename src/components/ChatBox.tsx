@@ -149,7 +149,9 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
     setIsLoading(true);
 
     try {
-      const history = messages;
+      // Limit history to last 10 messages to save tokens and avoid quota limits
+      const historyLimit = 10;
+      const history = messages.slice(-historyLimit);
       let assistantText = '';
       
       setMessages((prev) => [...prev, { 
@@ -189,14 +191,29 @@ If the user provides an image, analyze it (e.g., a room photo) and suggest suita
     } catch (error) {
       console.error('Chat error:', error);
       const errorTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setMessages((prev) => [
-        ...prev,
-        { 
-          role: 'model', 
-          parts: [{ text: 'Sorry, I encountered an error. Please try again.' }],
-          timestamp: errorTimestamp
-        },
-      ]);
+      const errorMessage = error instanceof Error ? error.message : 'Sorry, I encountered an error. Please try again.';
+      
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        // If the last message is the empty bot message we just added, update it
+        if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model' && !newMessages[newMessages.length - 1].parts[0].text) {
+          newMessages[newMessages.length - 1] = {
+            role: 'model',
+            parts: [{ text: `Error: ${errorMessage}` }],
+            timestamp: errorTimestamp
+          };
+          return newMessages;
+        }
+        // Otherwise append a new error message
+        return [
+          ...prev,
+          { 
+            role: 'model', 
+            parts: [{ text: `Error: ${errorMessage}` }],
+            timestamp: errorTimestamp
+          },
+        ];
+      });
     } finally {
       setIsLoading(false);
     }

@@ -1,5 +1,7 @@
 {
-  "name": "Thai-English AI Chatbot",
-  "description": "An AI chatbot that answers in Thai with English translations, supporting text and image inputs.",
-  "requestFramePermissions": ["microphone"]
+  "name": "Wallcraft AI Assistant",
+  "description": "Official AI assistant for Wallcraft Thailand, providing expert advice on premium wallpapers and interior decor in Thai and English.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
