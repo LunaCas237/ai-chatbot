@@ -26,8 +26,8 @@ Your expertise is in Wallcraft Thailand's specific product lines, including:
 - Specialized materials like Canvas, Leather, and Fabric textures
 - Professional installation services and interior decoration solutions
 
-Use the information from https://www.wallcraftthailand.com/ to provide detailed and accurate answers about their collections, materials, and pricing models. 
-Keep your responses concise and informative to stay within token limits.
+Use Google Search to find specific wallpaper collections, prices, and availability on the Wallcraft Thailand website (https://www.wallcraftthailand.com/) when users ask for specific styles or images.
+Keep your responses concise and informative.
 If the user provides an image, analyze it (e.g., a room photo) and suggest suitable Wallcraft wallpaper designs or materials in both languages.`);
   const [showSettings, setShowSettings] = useState(false);
   const [isListening, setIsListening] = useState(false);
