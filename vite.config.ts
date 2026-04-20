@@ -5,10 +5,20 @@ import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+  
+  // Aggressively look for the API key in all possible locations
+  const apiKey = env.GEMINI_API_KEY || 
+                 env.VITE_GEMINI_API_KEY || 
+                 process.env.GEMINI_API_KEY || 
+                 process.env.VITE_GEMINI_API_KEY || 
+                 '';
+  
+  console.log('Build-time API Key check:', apiKey ? 'FOUND' : 'NOT FOUND');
+
   return {
     plugins: [react(), tailwindcss()],
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.GEMINI_API_KEY': JSON.stringify(apiKey),
     },
     resolve: {
       alias: {
