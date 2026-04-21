@@ -1,29 +1,45 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 
-// Robust API key detection for both Vite and Next.js
+/**
+ * Universal Gemini API key detection.
+ * Works in:
+ * 1. AI Studio (Vite)
+ * 2. Next.js (.env.local)
+ * 3. Vite (.env)
+ * 4. Custom environments
+ */
 const getApiKey = () => {
-  // 1. Check process.env (Works in Next.js and Vite with 'define')
+  const isInvalid = (k: any) => 
+    !k || 
+    typeof k !== 'string' || 
+    k.trim() === "" || 
+    k === "undefined" || 
+    k === "null" || 
+    k.includes("YOUR_") || 
+    k.includes("INSERT_");
+
+  // Check process.env (Next.js or Node-like environments)
   if (typeof process !== 'undefined' && process.env) {
-    const key = process.env.GEMINI_API_KEY || 
-                process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
+    const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY || 
+                process.env.GEMINI_API_KEY || 
                 (process.env as any).VITE_GEMINI_API_KEY;
-    if (key && key !== "undefined") return key;
+    if (!isInvalid(key)) return key;
   }
   
-  // 2. Check import.meta.env (Vite standard)
+  // Check import.meta.env (Vite standard)
   try {
     // @ts-ignore
-    const viteKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (viteKey && viteKey !== "undefined") return viteKey;
-  } catch (e) {
-    // Ignore if import.meta is not available
-  }
+    const env = import.meta.env;
+    if (env) {
+      const key = env.VITE_GEMINI_API_KEY || env.GEMINI_API_KEY;
+      if (!isInvalid(key)) return key;
+    }
+  } catch (e) {}
 
   return "";
 };
 
-const apiKey = getApiKey();
-const ai = new GoogleGenAI({ apiKey: apiKey || "" });
+const defaultApiKey = getApiKey();
 
 export interface MessagePart {
   text?: string;
@@ -46,10 +62,15 @@ export async function* sendMessageStream(
   systemInstruction?: string,
   customApiKey?: string
 ) {
-  const finalApiKey = customApiKey || apiKey;
+  const finalApiKey = customApiKey || defaultApiKey;
   
-  if (!finalApiKey || finalApiKey === "undefined") {
-    throw new Error("Gemini API key is not configured. Please add GEMINI_API_KEY to the 'Secrets' menu in AI Studio Settings and REFRESH the preview.");
+  if (!finalApiKey || finalApiKey === "undefined" || finalApiKey.trim() === "") {
+    throw new Error(
+      "Gemini API key not found. \n\n" +
+      "1. If using AI Studio: Add GEMINI_API_KEY to 'Secrets'. \n" +
+      "2. If using Next.js: Add NEXT_PUBLIC_GEMINI_API_KEY to your .env.local file. \n" +
+      "3. If using Vite: Add VITE_GEMINI_API_KEY to your .env file."
+    );
   }
 
   const aiClient = new GoogleGenAI({ apiKey: finalApiKey });
@@ -76,8 +97,6 @@ export async function* sendMessageStream(
       config: {
         systemInstruction: systemInstruction || "You are the official AI assistant for Wallcraft Thailand.",
         temperature: 0.7,
-        tools: [{ googleSearch: {} }],
-        toolConfig: { includeServerSideToolInvocations: true }
       },
     });
 
@@ -87,8 +106,34 @@ export async function* sendMessageStream(
         yield response.text;
       }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Error:", error);
-    yield "I encountered an error. Please check your API key in the Secrets menu.";
+    
+    let errorMessage = "Unknown error";
+    
+    // Try to parse structured error message
+    try {
+      if (typeof error?.message === 'string') {
+        const parsed = JSON.parse(error.message);
+        errorMessage = parsed?.error?.message || parsed?.message || error.message;
+      } else {
+        errorMessage = error?.message || "Unknown error";
+      }
+    } catch (e) {
+      errorMessage = error?.message || "Unknown error";
+    }
+
+    if (errorMessage.includes("API_KEY_INVALID") || errorMessage.includes("API key not valid")) {
+      yield `❌ **Invalid API Key**: The API key being used is not valid. 
+
+**How to fix:**
+1. Generate a new key at [aistudio.google.com](https://aistudio.google.com/app/apikey).
+2. If using AI Studio, add it to the **Secrets** menu as \`GEMINI_API_KEY\`.
+3. If using your own website, paste it into the **Settings (gear icon)** fallback field temporarily to test.`;
+    } else if (errorMessage.includes("quota") || errorMessage.includes("429")) {
+      yield `⚠️ **Quota Exceeded**: You've hit the Gemini API rate limit. Please wait a moment or use a different API key.`;
+    } else {
+      yield `I encountered an error: ${errorMessage}. Please verify your API key and configuration.`;
+    }
   }
 }

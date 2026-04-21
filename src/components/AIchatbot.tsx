@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, X, Settings, Loader2, Image as ImageIcon, Sparkles, Circle, Mic, Square, Crop as CropIcon, Check, MessageCircle } from 'lucide-react';
+import { Send, Bot, User, X, Settings, Loader2, Image as ImageIcon, Sparkles, Circle, Mic, Square, Crop as CropIcon, Check, MessageCircle, Trash2, RefreshCw } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactCrop, { type Crop, PixelCrop } from 'react-image-crop';
@@ -163,6 +163,8 @@ When an image is provided:
 
     try {
       let assistantText = '';
+      const botMessageId = messages.length + 1;
+      
       setMessages((prev) => [...prev, { 
         role: 'model', 
         parts: [{ text: '' }], 
@@ -189,8 +191,20 @@ When an image is provided:
           return newMessages;
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Chat error:', error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred.";
+      
+      setMessages((prev) => {
+        const newMessages = [...prev];
+        // Replace the empty/loading bot message with the error
+        newMessages[newMessages.length - 1] = {
+          role: 'model',
+          parts: [{ text: `⚠️ **Error:** ${errorMessage}` }],
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        return newMessages;
+      });
     } finally {
       setIsLoading(false);
     }
@@ -231,6 +245,9 @@ When an image is provided:
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button onClick={() => setMessages([])} title="Clear Chat" className="rounded-full p-1.5 hover:bg-white/10 text-slate-400">
+                  <Trash2 size={18} />
+                </button>
                 <button onClick={() => setShowSettings(!showSettings)} className="rounded-full p-1.5 hover:bg-white/10 text-slate-400">
                   <Settings size={18} />
                 </button>
@@ -250,9 +267,17 @@ When an image is provided:
                   className="bg-[#0f0f0f] border-b border-[#2a2a2a] overflow-hidden"
                 >
                   <div className="p-4">
-                    <label className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                      Gemini API Key (Optional Fallback)
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                        Gemini API Key (Optional Fallback)
+                      </label>
+                      <button 
+                        onClick={() => setUserApiKey('')} 
+                        className="text-[9px] text-[#C5A059] hover:underline"
+                      >
+                        Reset Key
+                      </button>
+                    </div>
                     <input
                       type="password"
                       value={userApiKey}
